@@ -3,47 +3,51 @@ import path from "path";
 import { validateData } from "./helpers/validateData.js";
 import { checkExtention } from "./helpers/checkExtention.js";
 
-export async function createFile(fileName, content) {
-  const file = {
-    fileName,
-    content,
-  };
-  const res = validateData(file);
-  if (res.error) {
-    console.log(`please specify ${result.error.details[0].path[0]} parametr `);
+export async function createFile(req, res, next) {
+  const { body } = req;
+  const resultValidate = validateData(body);
+  if (resultValidate.error) {
+    res.status(400).json({
+      message: `please specify ${resultValidate.error.details[0].path[0]} parametr `,
+    });
     return;
   }
-  const { extention, result } = checkExtention(fileName);
+  const { extention, result } = checkExtention(body.fileName);
   if (!result) {
-    console.log(`This app doesn't support file with ${extention} extention`);
+    res.status(400).json({
+      message: `This app doesn't support file with ${extention} extention`,
+    });
     return;
   }
-  const filePath = path.resolve("file", fileName);
+  const filePath = path.resolve("files", body.fileName);
   try {
-    await fs.writeFile(filePath, content, "utf-8");
-    console.log("File was created successfully");
+    await fs.writeFile(filePath, body.content, "utf-8");
+    res.status(201).json({ message: "File was created successfully" });
   } catch (error) {
-    console.log(error);
+    res.status(500).json({ message: error.message });
   }
 }
 
-export const getFiles = async () => {
+export const getFiles = async (req, res, next) => {
   const folderPath = path.resolve("files");
-  const res = await fs.readdir(folderPath);
+  const resultReader = await fs.readdir(folderPath);
 
-  if (!res.length) {
-    console.log("Sorry, there are no files in this folder");
+  if (!resultReader.length) {
+    res
+      .status(404)
+      .json({ message: "Sorry, there are no files in this folder" });
     return;
   }
-  res.forEach((el) => console.log(el));
+  res.json(resultReader);
 };
 
-export const getFileInfo = async (fileName) => {
+export const getFileInfo = async (req, res, next) => {
+  const { fileName } = req.params;
   const dirPath = path.resolve("files");
   const files = await fs.readdir(dirPath);
 
   if (!files.includes(fileName)) {
-    console.log("There are no file with such name");
+    res.status(404).json({ message: "There are no file with such name" });
     return;
   }
   const filePath = path.resolve("files", fileName);
@@ -54,7 +58,7 @@ export const getFileInfo = async (fileName) => {
   const ext = path.extname(filePath);
 
   const nameFile = path.basename(filePath, ext);
-  console.log({
+  res.json({
     content,
     createdAdd: birthtime,
     extention: ext,
